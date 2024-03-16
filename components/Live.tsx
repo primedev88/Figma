@@ -1,9 +1,10 @@
 // collections of all live functionalities
 import { useMyPresence, useOthers } from "@/liveblocks.config"
 import LiveCursors from "./cursor/LiveCursors"
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CursorChat from "./cursor/CursorChat";
-import { CursorMode } from "@/types/type";
+import { CursorMode, Reaction } from "@/types/type";
+import ReactionSelector from "./reaction/ReactionButton";
 
 const Live = () => {
   const others = useOthers(); //returns all the users currently in the same room
@@ -12,8 +13,14 @@ const Live = () => {
   const [cursorState, setCursorState] = useState({
     mode: CursorMode.Hidden,
   })
+
+  const [reactions, setReactions] = useState<Reaction[]>([])
+
+
   const handlePointerMove = useCallback((event:React.PointerEvent)=>{
     event.preventDefault();
+
+    
 
     const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
     const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
@@ -35,6 +42,38 @@ const Live = () => {
     updateMyPresence({cursor:{x,y} });
   },[])
 
+  useEffect(()=>{
+    const onKeyUp = (e: KeyboardEvent) => {
+      if(e.key === '/'){
+        setCursorState({
+          mode: CursorMode.Chat,
+          previousMessage: null,
+          message: '',
+        })
+      } else if(e.key ==='Escape'){
+        updateMyPresence({message: ''})
+        setCursorState({ mode: CursorMode.Hidden})
+      } else if(e.key === 'e'){
+        setCursorState({
+          mode: CursorMode.ReactionSelector,
+        })
+      }
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if(e.key ==='/'){
+        e.preventDefault();
+      }
+    }
+
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.removeEventListener('keyup',onKeyUp);
+      window.removeEventListener('keydown',onKeyDown);
+    }
+  },[updateMyPresence]);
 
   return (
     <div
@@ -51,6 +90,14 @@ const Live = () => {
           cursorState={cursorState}
           setCursorState={setCursorState}
           updateMyPresence={updateMyPresence}
+        />
+      )}
+
+      {cursorState.mode === CursorMode.ReactionSelector && (
+        <ReactionSelector
+          setReaction={(reaction)=>{
+            setReactions(reaction);
+          }}
         />
       )}
     </div>
